@@ -12,10 +12,10 @@ class SPKIHashApp < Sinatra::Application
 %head
   %meta{'http-equiv' => 'Content-Type', :content => 'text/html'}
   %title
-    Public key fingerprint calcurator for Chrome
+    Public key fingerprint calculator for Chrome
 %body
   %h1
-    Public key fingerprint calcurator for Chrome
+    Public key fingerprint calculator for Chrome
 
   %p= message
 
