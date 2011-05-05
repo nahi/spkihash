@@ -17,6 +17,9 @@ class SPKIHashApp < Sinatra::Application
   %h1
     Public key fingerprint calculator for Chrome
 
+  %p
+    It's just a proof-of-concept. Do not trust it and calculate it by yourself for actual use.
+
   %p= message
 
   %form{:action => "/upload", :method => "post", :enctype => "multipart/form-data"}
