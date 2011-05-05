@@ -30,8 +30,12 @@ class SPKIHashApp < Sinatra::Application
       What's the Public key fingerprint for Chrome?
 
   %p
+    Source:
+    %a{:href => 'https://github.com/nahi/spkihash'}https://github.com/nahi/spkihash
+
+  %p
     Author:
-    %a{:href => 'https://twitter.com/nahi'} @nahi
+    %a{:href => 'https://twitter.com/nahi'}@nahi
 __EOS__
 
   post '/upload' do
