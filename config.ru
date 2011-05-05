@@ -46,14 +46,16 @@ __EOS__
       if tmpfile = file[:tempfile]
         begin
           uploaded = tmpfile.read
+          STDERR.puts "Uploaded #{uploaded.bytesize} bytes"
           cert = OpenSSL::X509::Certificate.new(uploaded)
           if hash = spki_sha1_hash(cert.to_der)
             message = "Uploaded certificate: #{cert.subject}<br/>\n" +
               "Public key fingerprint for Chrome HSTS preloading:<br/>\n" +
               " => " + hash
+            STDERR.puts [hash, cert.subject].join("\t")
           end
         rescue Exception => e
-          message = e.inspect
+          message = [e.class, e.message].join(" ")
         end
       else
         message = 'Uploading failure'
