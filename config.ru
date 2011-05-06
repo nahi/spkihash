@@ -145,7 +145,6 @@ private
       true
     }
     c.get(uri)
-p certs.size
     certs
   end
 
