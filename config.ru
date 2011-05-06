@@ -2,6 +2,9 @@ require 'rubygems'
 require 'sinatra'
 require 'openssl'
 require 'haml'
+require 'uri'
+require 'httpclient'
+require 'logger'
 
 class SPKIHashApp < Sinatra::Application
   enable :sessions
@@ -22,11 +25,24 @@ class SPKIHashApp < Sinatra::Application
 
   %p= message
 
+  %br
+
   %form{:action => "/upload", :method => "post", :enctype => "multipart/form-data"}
     Upload a CA certificate file:
-    %input{:type => "file",:name => "file"}
     %br
-    %input{:type => "submit",:value => "upload"}
+    %input{:type => "file", :name => "file"}
+    %input{:type => "submit", :value => "upload"}
+
+  %br
+  %br
+
+  %form{:action => "/fetch", :method => "post"}
+    Fetch a certificate chain of given SSL server:
+    %br
+    %input{:type => "text", :value => "https://", :name => "url"}
+    %input{:type => "submit", :value => "fetch"}
+
+  %br
 
   %p
     %a{:href => 'http://www.imperialviolet.org/2011/05/04/pinning.html'}
@@ -41,21 +57,24 @@ class SPKIHashApp < Sinatra::Application
     %a{:href => 'https://twitter.com/nahi'}@nahi
 __EOS__
 
+  helpers do
+    include Rack::Utils
+    alias_method :h, :escape_html
+  end
+
   post '/upload' do
     if file = params[:file]
       if tmpfile = file[:tempfile]
         begin
           uploaded = tmpfile.read
-          STDERR.puts "Uploaded #{uploaded.bytesize} bytes"
+          log("Uploaded #{uploaded.bytesize} bytes")
           cert = OpenSSL::X509::Certificate.new(uploaded)
-          if hash = spki_sha1_hash(cert.to_der)
-            message = "Uploaded certificate: #{cert.subject}<br/>\n" +
-              "Public key fingerprint for Chrome HSTS preloading:<br/>\n" +
-              " => " + hash
-            STDERR.puts [hash, cert.subject].join("\t")
-          end
+          hash = spki_sha1_hash(cert.to_der)
+          log_hash(cert, hash)
+          message = dump_cert_message(cert, hash)
         rescue Exception => e
-          message = [e.class, e.message].join(" ")
+          log(e)
+          message = e.message
         end
       else
         message = 'Uploading failure'
@@ -65,8 +84,29 @@ __EOS__
     redirect '/'
   end
 
+  post '/fetch' do
+    if url = params[:url]
+      if !url.empty? && url != 'https://'
+        log("Fetch: #{url}")
+        begin
+          uri = urify(url)
+          message = fetch_certs(uri).map { |cert|
+            hash = spki_sha1_hash(cert.to_der)
+            log_hash(cert, hash)
+            dump_cert_message(cert, hash)
+          }.join("\n\n")
+        rescue Exception => e
+          log(e)
+          message = e.message
+        end
+      end
+    end
+    session[:message] = message
+    redirect '/'
+  end
+
   get '/' do
-    message = session[:message]
+    message = session[:message].to_s.split(/\n/).map { |line| h(line) }.join("<br/>\n")
     Haml::Engine.new(INDEX).render(self, :message => message)
   end
 
@@ -80,6 +120,49 @@ private
     }
     return unless spki
     ["sha1", [OpenSSL::Digest::SHA1.digest(spki.to_der)].pack('m*').chomp].join("/")
+  end
+
+  def cert_md5_hash(cert)
+    OpenSSL::Digest::MD5.hexdigest(cert.to_der)
+  end
+
+  # set path to '/'
+  def urify(url)
+    url = url.to_s.downcase
+    if %r(^https://) !~ url
+      url = 'https://' + url
+    end
+    URI.parse(url) + '/'
+  end
+
+  def fetch_certs(uri)
+    certs = []
+    c = HTTPClient.new
+    c.ssl_config.verify_callback = proc { |ok, ctx|
+      unless certs.find { |cert| cert.to_der == ctx.current_cert.to_der }
+        certs << ctx.current_cert
+      end
+      true
+    }
+    c.get(uri)
+p certs.size
+    certs
+  end
+
+  def dump_cert_message(cert, hash)
+    [
+      "Fetched certificate of #{cert.subject}",
+      "Certificate fingerprint(MD5): #{cert_md5_hash(cert)}",
+      "SPKI fingerprint: #{hash}"
+    ].join("\n")
+  end
+
+  def log_hash(cert, hash)
+    log([hash, cert_md5_hash(cert), cert.subject].join("\t"))
+  end
+
+  def log(msg)
+    Logger.new(STDERR).info(msg)
   end
 end
 
