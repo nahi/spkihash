@@ -3,3 +3,11 @@ Public key fingerprint calculator for Chrome
 What's the Public key fingerprint for Chrome? -> http://www.imperialviolet.org/2011/05/04/pinning.html
 
 Author: Hiroshi Nakamura, @nahi,  nahi@ruby-lang.org, http://www.google.com/profiles/nakahiro
+
+
+How to deploy this app to cloudfoundry.com:
+
+  % jruby -S gem install warble
+  % cd /path/to/spkihash
+  % jruby -S warble
+  % vmc push YOURAPPNAME --runtime java --mem 256M
