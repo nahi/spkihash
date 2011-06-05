@@ -98,7 +98,12 @@ __EOS__
         rescue Exception => e
           log(e)
           message = e.message
+          if message.nil? || message.empty?
+            message = e.class.name
+          end
+          message = "Connection failed: #{message}"
         end
+        message = "Connecting to #{uri.to_s}...\n\n" + message
       end
     end
     session[:message] = message
